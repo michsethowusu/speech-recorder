@@ -20,6 +20,8 @@
       --success-soft: #DCFCE7;
       --danger: #DC2626;
       --danger-soft: #FEE2E2;
+      --warning: #D97706;
+      --warning-soft: #FEF3C7;
       --radius: 12px;
       --radius-full: 9999px;
       --shadow: 0 4px 12px rgba(15, 23, 42, 0.05);
@@ -36,7 +38,7 @@
     header {
       background: var(--surface);
       border-bottom: 1px solid var(--border);
-      padding: 14px 24px;
+      padding: 12px 24px;
       display: flex;
       justify-content: space-between;
       align-items: center;
@@ -111,14 +113,101 @@
     .btn-primary:hover { background: var(--brand-hover); border-color: var(--brand-hover); color: #FFF; }
     .btn-success { background: var(--success); color: #FFF; border-color: var(--success); }
     .btn-success:hover { background: #15803D; color: #FFF; }
-    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+    /* Microphone Hardware Status Bar */
+    .mic-bar {
+      background: #FFFFFF;
+      border-bottom: 1px solid var(--border);
+      padding: 10px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 12px;
+      font-size: 13px;
+    }
+    .mic-bar-left {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .mic-select-dropdown {
+      padding: 6px 12px;
+      border: 1.5px solid var(--border);
+      border-radius: 6px;
+      font-size: 13px;
+      color: var(--text);
+      background: var(--surface);
+      font-weight: 600;
+      outline: none;
+      max-width: 360px;
+    }
+    .mic-select-dropdown:focus {
+      border-color: var(--accent);
+    }
+    .mic-status-tag {
+      font-size: 12px;
+      font-weight: 700;
+      padding: 4px 10px;
+      border-radius: var(--radius-full);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .mic-status-tag.external {
+      background: var(--success-soft);
+      color: var(--success);
+      border: 1px solid #BBF7D0;
+    }
+    .mic-status-tag.internal {
+      background: var(--danger-soft);
+      color: var(--danger);
+      border: 1px solid #FECACA;
+    }
 
     main {
       flex: 1;
       max-width: 900px;
       width: 100%;
       margin: 0 auto;
-      padding: 32px 20px 80px;
+      padding: 24px 20px 80px;
+    }
+
+    /* Blocked Microphone Alert Banner */
+    .mic-alert-banner {
+      background: var(--danger-soft);
+      border: 1.5px solid var(--danger);
+      border-radius: var(--radius);
+      padding: 18px 22px;
+      margin-bottom: 24px;
+      display: none;
+      align-items: flex-start;
+      gap: 14px;
+      animation: shake 0.4s ease;
+    }
+    .mic-alert-banner.active {
+      display: flex;
+    }
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-6px); }
+      40%, 80% { transform: translateX(6px); }
+    }
+    .mic-alert-icon {
+      font-size: 26px;
+      line-height: 1;
+    }
+    .mic-alert-title {
+      font-size: 15px;
+      font-weight: 800;
+      color: var(--danger);
+      margin-bottom: 4px;
+    }
+    .mic-alert-text {
+      font-size: 13.5px;
+      color: #7F1D1D;
+      line-height: 1.45;
     }
 
     /* Setup / File Loader Card */
@@ -134,9 +223,6 @@
       font-size: 16px;
       font-weight: 700;
       margin-bottom: 8px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
     }
     .setup-desc {
       font-size: 13.5px;
@@ -287,8 +373,14 @@
       box-shadow: 0 4px 16px rgba(220, 38, 38, 0.3);
       transition: all 0.15s ease;
     }
-    .btn-rec:hover { transform: scale(1.04); background: #B91C1C; }
-    .btn-rec:active { transform: scale(0.96); }
+    .btn-rec:hover:not(:disabled) { transform: scale(1.04); background: #B91C1C; }
+    .btn-rec:active:not(:disabled) { transform: scale(0.96); }
+    .btn-rec:disabled {
+      background: #94A3B8;
+      box-shadow: none;
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
     .btn-rec.recording {
       background: #0F172A;
       box-shadow: 0 4px 16px rgba(15, 23, 42, 0.4);
@@ -360,7 +452,6 @@
       color: var(--text);
     }
 
-    /* Modal / Dialog */
     .toast {
       position: fixed;
       bottom: 24px;
@@ -394,13 +485,39 @@
     </div>
   </header>
 
+  <!-- Microphone Hardware Enforcer Bar -->
+  <div class="mic-bar">
+    <div class="mic-bar-left">
+      <label for="mic-select" style="font-weight: 700; color: var(--text-muted);">Microphone Source:</label>
+      <select id="mic-select" class="mic-select-dropdown" onchange="onUserSelectMic(this.value)">
+        <option value="">Checking connected audio devices...</option>
+      </select>
+      <button type="button" class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="refreshAudioDevices(true)" title="Rescan devices">🔄 Rescan</button>
+    </div>
+    <div>
+      <span id="mic-status-badge" class="mic-status-tag internal">❌ Internal Microphone (Blocked)</span>
+    </div>
+  </div>
+
   <main>
+    <!-- Prominent Blocked Banner (Shown when Internal Mic is selected) -->
+    <div class="mic-alert-banner" id="mic-blocked-banner">
+      <div class="mic-alert-icon">🚫</div>
+      <div>
+        <div class="mic-alert-title">Internal Laptop Microphone Blocked</div>
+        <div class="mic-alert-text">
+          Recordings with built-in laptop microphones are <strong>strictly disabled</strong> to prevent poor acoustic quality and compression. 
+          Please connect your <strong>external USB microphone or audio interface</strong> on a stand, and select it from the dropdown above to enable the Record button.
+        </div>
+      </div>
+    </div>
+
     <!-- Setup Card: Load CSV or Sample -->
     <div class="setup-card" id="setup-card">
       <div class="setup-title">
         <span>Load Recording Prompts</span>
       </div>
-      <p class="setup-desc">Upload your prompt CSV file (with a <code>sentence</code> or <code>text</code> column), or load sample sentences to start recording immediately. Everything runs completely inside your browser offline.</p>
+      <p class="setup-desc">Upload your prompt CSV file (with a <code>sentence</code> or <code>text</code> column), or load sample sentences to start recording. Everything runs completely inside your browser offline.</p>
 
       <div class="upload-zone" onclick="document.getElementById('csv-file-input').click()">
         <div class="upload-icon">📄</div>
@@ -446,7 +563,7 @@
       <div class="controls-row">
         <button type="button" class="btn btn-nav" id="prev-btn" onclick="prevPrompt()" title="Previous sentence (Left Arrow)">← Prev</button>
         
-        <button type="button" class="btn-rec" id="rec-btn" onclick="toggleRecord()">
+        <button type="button" class="btn-rec" id="rec-btn" onclick="toggleRecord()" title="Record (Spacebar)">
           <div class="rec-icon"></div>
           <span id="rec-btn-text">REC</span>
         </button>
@@ -485,6 +602,11 @@
     let timerInterval = null;
     let analyser = null;
     let animFrame = null;
+
+    // Hardware Enforcer State
+    let audioInputDevices = [];
+    let selectedDeviceId = "";
+    let isExternalMicActive = false;
 
     // IndexedDB for persistent offline storage
     const DB_NAME = "speech_recorder_db";
@@ -544,26 +666,175 @@
       setTimeout(() => { t.style.display = "none"; }, 3000);
     }
 
-    // CSV Parser
+    // =========================================================
+    // MICROPHONE HARDWARE ENFORCER (BLOCKS INTERNAL LAPTOP MICS)
+    // =========================================================
+
+    const INTERNAL_PATTERNS = /(internal|built-?in|integrated|default|array|conexant|realtek|macbook|laptop|system|high definition audio|analog stereo)/i;
+    const EXTERNAL_PATTERNS = /(usb|external|scarlett|focusrite|behringer|samson|shure|rode|audiobox|presonus|yeti|blue|hyperx|headset|line\s*in|interface|mic\s*in|streamer|broadcast)/i;
+
+    function classifyMicrophone(label) {
+      if (!label) return { isInternal: true, isExternal: false, cleanLabel: "Unknown Audio Device" };
+      const hasExternalKeyword = EXTERNAL_PATTERNS.test(label);
+      const hasInternalKeyword = INTERNAL_PATTERNS.test(label);
+
+      // If it contains "USB" or known audio interface brands, it is strictly external
+      if (hasExternalKeyword) {
+        return { isInternal: false, isExternal: true, cleanLabel: label };
+      }
+      // If it explicitly matches built-in / internal indicators
+      if (hasInternalKeyword) {
+        return { isInternal: true, isExternal: false, cleanLabel: label };
+      }
+      // If ambiguous, default to external only if user has explicitly connected an audio line
+      return { isInternal: false, isExternal: true, cleanLabel: label };
+    }
+
+    async function refreshAudioDevices(showPrompt = false) {
+      try {
+        // Request basic permission if device labels are blank
+        if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
+          alert("Your browser does not support audio device enumeration. Please use Chrome, Edge, or Firefox.");
+          return;
+        }
+
+        let devices = await navigator.mediaDevices.enumerateDevices();
+        let audioInputs = devices.filter(d => d.kind === "audioinput");
+
+        // If labels are empty, trigger a fast permission prompt
+        if (audioInputs.length > 0 && !audioInputs[0].label) {
+          try {
+            const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            tempStream.getTracks().forEach(t => t.stop());
+            devices = await navigator.mediaDevices.enumerateDevices();
+            audioInputs = devices.filter(d => d.kind === "audioinput");
+          } catch (permErr) {
+            console.warn("Could not obtain mic permission for labeling", permErr);
+          }
+        }
+
+        audioInputDevices = audioInputs;
+        populateMicDropdown();
+
+      } catch (err) {
+        console.error("Device scan error", err);
+      }
+    }
+
+    function populateMicDropdown() {
+      const select = document.getElementById("mic-select");
+      select.innerHTML = "";
+
+      if (audioInputDevices.length === 0) {
+        const opt = document.createElement("option");
+        opt.value = "";
+        opt.innerText = "No microphones detected";
+        select.appendChild(opt);
+        setMicBlockedState(true, "No audio input devices found. Please connect your USB microphone.");
+        return;
+      }
+
+      let bestExternalDeviceId = "";
+      let hasExternalDevice = false;
+
+      audioInputDevices.forEach((dev, idx) => {
+        const opt = document.createElement("option");
+        opt.value = dev.deviceId;
+        const info = classifyMicrophone(dev.label || `Microphone ${idx + 1}`);
+
+        if (info.isExternal) {
+          opt.innerText = `🎙️ ${info.cleanLabel} (External - Allowed)`;
+          hasExternalDevice = true;
+          if (!bestExternalDeviceId) bestExternalDeviceId = dev.deviceId;
+        } else {
+          opt.innerText = `🚫 ${info.cleanLabel} (Internal - Blocked)`;
+        }
+        select.appendChild(opt);
+      });
+
+      // Auto-select the first external microphone if available
+      if (bestExternalDeviceId) {
+        selectedDeviceId = bestExternalDeviceId;
+        select.value = bestExternalDeviceId;
+        setMicBlockedState(false);
+      } else {
+        // Only internal microphones found! Block recording!
+        selectedDeviceId = audioInputDevices[0].deviceId;
+        select.value = selectedDeviceId;
+        setMicBlockedState(true, "Only internal laptop microphone detected.");
+      }
+    }
+
+    function onUserSelectMic(deviceId) {
+      selectedDeviceId = deviceId;
+      const dev = audioInputDevices.find(d => d.deviceId === deviceId);
+      if (!dev) return;
+
+      const info = classifyMicrophone(dev.label);
+      if (info.isInternal) {
+        setMicBlockedState(true, "Internal laptop microphone selected.");
+      } else {
+        setMicBlockedState(false);
+      }
+
+      // If active stream is running, restart it with newly selected device
+      if (mediaStream) {
+        mediaStream.getTracks().forEach(t => t.stop());
+        mediaStream = null;
+      }
+    }
+
+    function setMicBlockedState(blocked, reason = "") {
+      const banner = document.getElementById("mic-blocked-banner");
+      const badge = document.getElementById("mic-status-badge");
+      const recBtn = document.getElementById("rec-btn");
+
+      if (blocked) {
+        isExternalMicActive = false;
+        banner.classList.add("active");
+        badge.className = "mic-status-tag internal";
+        badge.innerText = "❌ Internal Microphone (Blocked)";
+        recBtn.disabled = true;
+        recBtn.title = "Recording blocked: Please plug in an external USB microphone.";
+      } else {
+        isExternalMicActive = true;
+        banner.classList.remove("active");
+        badge.className = "mic-status-tag external";
+        badge.innerText = "✓ External Microphone Active";
+        recBtn.disabled = false;
+        recBtn.title = "Ready to record (Spacebar)";
+      }
+    }
+
+    // Auto-listen for USB microphone hot-plugging
+    if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
+      navigator.mediaDevices.addEventListener("devicechange", () => {
+        refreshAudioDevices();
+        showToast("Audio hardware change detected: Updating microphones...");
+      });
+    }
+
+    // =========================================================
+    // PROMPTS & CSV LOGIC
+    // =========================================================
+
     function parseCSV(text) {
       const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
       if (lines.length === 0) return [];
 
-      // Parse header
       const headerLine = lines[0];
       const headers = headerLine.split(",").map(h => h.trim().toLowerCase().replace(/^["']|["']$/g, ""));
       
       let textColIdx = headers.findIndex(h => ["sentence", "text", "prompt", "content", "transcription"].includes(h));
       let idColIdx = headers.findIndex(h => ["prompt_id", "id", "index", "clip_id"].includes(h));
 
-      if (textColIdx === -1) textColIdx = 0; // Default to first col
+      if (textColIdx === -1) textColIdx = 0;
 
       const result = [];
       for (let i = 1; i < lines.length; i++) {
         const line = lines[i];
         if (!line.trim()) continue;
         
-        // Simple regex to parse CSV taking quotes into account
         const row = [];
         let inQuotes = false;
         let token = "";
@@ -636,6 +907,7 @@
       currentIndex = 0;
       showCurrentPrompt();
       updateStats();
+      refreshAudioDevices();
     }
 
     function showCurrentPrompt() {
@@ -683,6 +955,10 @@
     }
 
     function reRecordPrompt() {
+      if (!isExternalMicActive) {
+        shakeBanner();
+        return;
+      }
       if (isRecording) stopRecording();
       const cur = prompts[currentIndex];
       recordingsMap.delete(cur.prompt_id);
@@ -691,27 +967,53 @@
       toggleRecord();
     }
 
-    // Audio Capture Engine (WAV 16-bit PCM)
+    function shakeBanner() {
+      const b = document.getElementById("mic-blocked-banner");
+      b.classList.remove("active");
+      void b.offsetWidth; // trigger reflow
+      b.classList.add("active");
+      showToast("Cannot record: An external USB microphone is required!");
+    }
+
+    // =========================================================
+    // AUDIO ENGINE (WAV 16-BIT PCM WITH DEVICE CONSTRAINTS)
+    // =========================================================
+
     async function initAudio() {
+      if (!isExternalMicActive) {
+        throw new Error("Internal microphone blocked. Please connect an external USB mic.");
+      }
+
       if (!audioContext) {
         audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 44100 });
       }
       if (audioContext.state === "suspended") {
         await audioContext.resume();
       }
+
+      // Exact constraint on the selected external device
+      const audioConstraints = {
+        channelCount: 1,
+        echoCancellation: false,
+        noiseSuppression: false,
+        autoGainControl: false
+      };
+
+      if (selectedDeviceId) {
+        audioConstraints.deviceId = { exact: selectedDeviceId };
+      }
+
       if (!mediaStream) {
-        mediaStream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            channelCount: 1,
-            echoCancellation: false,
-            noiseSuppression: false,
-            autoGainControl: false
-          }
-        });
+        mediaStream = await navigator.mediaDevices.getUserMedia({ audio: audioConstraints });
       }
     }
 
     async function toggleRecord() {
+      if (!isExternalMicActive) {
+        shakeBanner();
+        return;
+      }
+
       if (isRecording) {
         stopRecording();
       } else {
@@ -720,10 +1022,15 @@
     }
 
     async function startRecording() {
+      if (!isExternalMicActive) {
+        shakeBanner();
+        return;
+      }
+
       try {
         await initAudio();
       } catch (e) {
-        alert("Microphone permission denied: " + e.message);
+        alert("Audio initialization error: " + e.message);
         return;
       }
 
@@ -736,7 +1043,6 @@
       analyser.fftSize = 256;
       source.connect(analyser);
 
-      // ScriptProcessor for pure PCM audio extraction
       scriptProcessor = audioContext.createScriptProcessor(4096, 1, 1);
       scriptProcessor.onaudioprocess = (e) => {
         if (!isRecording) return;
@@ -747,16 +1053,13 @@
       source.connect(scriptProcessor);
       scriptProcessor.connect(audioContext.destination);
 
-      // UI state
       const btn = document.getElementById("rec-btn");
       btn.classList.add("recording");
       document.getElementById("rec-btn-text").innerText = "STOP";
       document.getElementById("review-row").classList.remove("active");
 
-      // VU Meter visualizer
       drawMeter();
 
-      // Timer
       clearInterval(timerInterval);
       timerInterval = setInterval(() => {
         const sec = Math.floor((Date.now() - recStartTime) / 1000);
@@ -805,7 +1108,6 @@
         return;
       }
 
-      // Encode WAV
       const sampleRate = audioContext.sampleRate;
       const wavBlob = encodeWAV(recordedBuffers, sampleRate);
       const cur = prompts[currentIndex];
@@ -823,14 +1125,10 @@
       saveRecordingToDB(recordItem);
       updateStats();
 
-      // Show review audio
       showCurrentPrompt();
-
-      // Auto advance after short pause if desired or allow user to click next
       showToast(`Saved: ${cur.prompt_id} (${durationSec.toFixed(1)}s)`);
     }
 
-    // Pure Client-side 16-bit PCM WAV Encoder
     function encodeWAV(buffers, sampleRate) {
       let totalLength = 0;
       for (let i = 0; i < buffers.length; i++) {
@@ -846,24 +1144,20 @@
       const buffer = new ArrayBuffer(44 + flat.length * 2);
       const view = new DataView(buffer);
 
-      // RIFF identifier
       writeString(view, 0, 'RIFF');
       view.setUint32(4, 36 + flat.length * 2, true);
       writeString(view, 8, 'WAVE');
-      // format chunk
       writeString(view, 12, 'fmt ');
-      view.setUint32(16, 16, true); // Subchunk1Size (16 for PCM)
-      view.setUint16(20, 1, true); // AudioFormat (1 for PCM)
-      view.setUint16(22, 1, true); // NumChannels (1 mono)
+      view.setUint32(16, 16, true);
+      view.setUint16(20, 1, true);
+      view.setUint16(22, 1, true);
       view.setUint32(24, sampleRate, true);
-      view.setUint32(28, sampleRate * 2, true); // ByteRate
-      view.setUint16(32, 2, true); // BlockAlign
-      view.setUint16(34, 16, true); // BitsPerSample
-      // data chunk
+      view.setUint32(28, sampleRate * 2, true);
+      view.setUint16(32, 2, true);
+      view.setUint16(34, 16, true);
       writeString(view, 36, 'data');
       view.setUint32(40, flat.length * 2, true);
 
-      // Write PCM samples
       let sampleIndex = 44;
       for (let i = 0; i < flat.length; i++, sampleIndex += 2) {
         const s = Math.max(-1, Math.min(1, flat[i]));
@@ -902,7 +1196,6 @@
         wavsFolder.file(filename, rec.blob);
         totalDurationSec += parseFloat(rec.duration);
         
-        // Escape quotes in CSV
         const escapedSentence = `"${rec.sentence.replace(/"/g, '""')}"`;
         metadataCsv += `${filename},${id},${escapedSentence},${rec.duration},${rec.timestamp},${station}\n`;
       }
@@ -936,7 +1229,6 @@
 
     // Keyboard Shortcuts
     window.addEventListener("keydown", (e) => {
-      // Ignore if user is typing in station text input
       if (document.activeElement && document.activeElement.tagName === "INPUT") return;
 
       if (e.code === "Space") {
@@ -953,9 +1245,9 @@
       }
     });
 
-    // Boot
     window.addEventListener("DOMContentLoaded", () => {
       initDB();
+      refreshAudioDevices();
     });
   </script>
 </body>
