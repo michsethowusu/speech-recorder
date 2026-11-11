@@ -111,11 +111,13 @@
     .btn:active { transform: scale(0.98); }
     .btn-primary { background: var(--brand); color: #FFF; border-color: var(--brand); }
     .btn-primary:hover { background: var(--brand-hover); border-color: var(--brand-hover); color: #FFF; }
+    .btn-accent { background: var(--accent); color: #FFF; border-color: var(--accent); }
+    .btn-accent:hover { background: #1D4ED8; color: #FFF; }
     .btn-success { background: var(--success); color: #FFF; border-color: var(--success); }
     .btn-success:hover { background: #15803D; color: #FFF; }
     .btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-    /* Microphone Hardware Status Bar */
+    /* Hardware & Quality Control Bar */
     .mic-bar {
       background: #FFFFFF;
       border-bottom: 1px solid var(--border);
@@ -131,6 +133,7 @@
       display: flex;
       align-items: center;
       gap: 10px;
+      flex-wrap: wrap;
     }
     .mic-select-dropdown {
       padding: 6px 12px;
@@ -141,29 +144,40 @@
       background: var(--surface);
       font-weight: 600;
       outline: none;
-      max-width: 360px;
+      max-width: 340px;
     }
     .mic-select-dropdown:focus {
       border-color: var(--accent);
     }
-    .mic-status-tag {
-      font-size: 12px;
+    .status-tags-group {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .status-tag {
+      font-size: 11.5px;
       font-weight: 700;
-      padding: 4px 10px;
+      padding: 3px 9px;
       border-radius: var(--radius-full);
       display: inline-flex;
       align-items: center;
-      gap: 6px;
+      gap: 5px;
     }
-    .mic-status-tag.external {
+    .status-tag.ok {
       background: var(--success-soft);
       color: var(--success);
       border: 1px solid #BBF7D0;
     }
-    .mic-status-tag.internal {
+    .status-tag.err {
       background: var(--danger-soft);
       color: var(--danger);
       border: 1px solid #FECACA;
+    }
+    .status-tag.warn {
+      background: var(--warning-soft);
+      color: var(--warning);
+      border: 1px solid #FDE68A;
     }
 
     main {
@@ -174,41 +188,80 @@
       padding: 24px 20px 80px;
     }
 
-    /* Blocked Microphone Alert Banner */
-    .mic-alert-banner {
-      background: var(--danger-soft);
-      border: 1.5px solid var(--danger);
+    /* First-Time User Setup Microphone Card */
+    .permission-card {
+      background: var(--surface);
+      border: 2px solid var(--accent);
       border-radius: var(--radius);
-      padding: 18px 22px;
+      padding: 24px;
       margin-bottom: 24px;
+      box-shadow: 0 6px 20px rgba(37, 99, 235, 0.08);
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      animation: fadeIn 0.3s ease;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-4px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .permission-icon {
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: var(--accent-soft);
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 26px;
+      flex-shrink: 0;
+    }
+    .permission-content { flex: 1; }
+    .permission-title {
+      font-size: 16px;
+      font-weight: 800;
+      color: var(--brand);
+      margin-bottom: 4px;
+    }
+    .permission-desc {
+      font-size: 13.5px;
+      color: var(--text-muted);
+      line-height: 1.45;
+      margin-bottom: 14px;
+    }
+
+    /* Quality Alert Banner */
+    .quality-banner {
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      margin-bottom: 20px;
       display: none;
       align-items: flex-start;
-      gap: 14px;
-      animation: shake 0.4s ease;
+      gap: 12px;
+      animation: shake 0.35s ease;
     }
-    .mic-alert-banner.active {
-      display: flex;
+    .quality-banner.active { display: flex; }
+    .quality-banner.err {
+      background: var(--danger-soft);
+      border: 1.5px solid var(--danger);
+    }
+    .quality-banner.warn {
+      background: var(--warning-soft);
+      border: 1.5px solid var(--warning);
     }
     @keyframes shake {
       0%, 100% { transform: translateX(0); }
       20%, 60% { transform: translateX(-6px); }
       40%, 80% { transform: translateX(6px); }
     }
-    .mic-alert-icon {
-      font-size: 26px;
-      line-height: 1;
-    }
-    .mic-alert-title {
-      font-size: 15px;
-      font-weight: 800;
-      color: var(--danger);
-      margin-bottom: 4px;
-    }
-    .mic-alert-text {
-      font-size: 13.5px;
-      color: #7F1D1D;
-      line-height: 1.45;
-    }
+    .banner-icon { font-size: 24px; line-height: 1; }
+    .banner-title { font-size: 14.5px; font-weight: 800; margin-bottom: 3px; }
+    .banner-desc { font-size: 13px; line-height: 1.45; }
+    .quality-banner.err .banner-title { color: var(--danger); }
+    .quality-banner.err .banner-desc { color: #7F1D1D; }
+    .quality-banner.warn .banner-title { color: var(--warning); }
+    .quality-banner.warn .banner-desc { color: #78350F; }
 
     /* Setup / File Loader Card */
     .setup-card {
@@ -242,21 +295,15 @@
       border-color: var(--accent);
       background: var(--accent-soft);
     }
-    .upload-icon {
-      font-size: 28px;
-      margin-bottom: 8px;
-    }
-    .upload-hint {
-      font-size: 13px;
-      color: var(--text-muted);
-    }
+    .upload-icon { font-size: 28px; margin-bottom: 8px; }
+    .upload-hint { font-size: 13px; color: var(--text-muted); }
 
     /* Recording Workspace Card */
     .prompter-card {
       background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 32px 28px;
+      padding: 28px 26px;
       box-shadow: var(--shadow);
       display: none;
     }
@@ -266,7 +313,7 @@
       display: flex;
       justify-content: space-between;
       align-items: center;
-      margin-bottom: 24px;
+      margin-bottom: 20px;
       flex-wrap: wrap;
       gap: 12px;
     }
@@ -287,7 +334,7 @@
 
     /* Big Prompter Text */
     .prompter-text-container {
-      min-height: 140px;
+      min-height: 130px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -296,7 +343,7 @@
       background: #F8FAFC;
       border-radius: 12px;
       border: 1px solid #E2E8F0;
-      margin-bottom: 24px;
+      margin-bottom: 20px;
     }
     .prompter-text {
       font-size: 26px;
@@ -307,12 +354,12 @@
       letter-spacing: -0.01em;
     }
 
-    /* Audio VU Visualizer Meter */
+    /* Live Quality & Meter Bar */
     .meter-container {
       display: flex;
       align-items: center;
       gap: 12px;
-      margin-bottom: 24px;
+      margin-bottom: 20px;
       padding: 10px 16px;
       background: #F1F5F9;
       border-radius: 8px;
@@ -336,7 +383,10 @@
       height: 100%;
       background: var(--success);
       border-radius: var(--radius-full);
-      transition: width 0.05s ease;
+      transition: width 0.05s ease, background 0.1s ease;
+    }
+    .meter-bar-fill.clipping {
+      background: var(--danger) !important;
     }
     .meter-timer {
       font-family: monospace;
@@ -347,13 +397,13 @@
       text-align: right;
     }
 
-    /* Core Recording Controls */
+    /* Core Controls */
     .controls-row {
       display: flex;
       justify-content: center;
       align-items: center;
       gap: 20px;
-      margin-bottom: 24px;
+      margin-bottom: 22px;
     }
     .btn-rec {
       width: 80px;
@@ -404,11 +454,7 @@
       background: #EF4444;
     }
 
-    .btn-nav {
-      padding: 12px 20px;
-      font-size: 14px;
-      border-radius: 8px;
-    }
+    .btn-nav { padding: 12px 20px; font-size: 14px; border-radius: 8px; }
 
     /* Review Player Row */
     .review-row {
@@ -430,7 +476,7 @@
     }
     audio { flex: 1; height: 38px; }
 
-    /* Shortcuts & Guidance footer */
+    /* Shortcuts */
     .shortcuts-bar {
       border-top: 1px solid var(--border);
       padding-top: 16px;
@@ -478,6 +524,9 @@
       </div>
     </div>
     <div class="header-actions">
+      <button type="button" class="btn" id="header-setup-mic-btn" onclick="requestMicrophoneAccess()" style="display: none;">
+        🎙️ Set Up Microphone
+      </button>
       <input type="text" id="station-id" placeholder="Volunteer / Station Name" style="padding: 7px 12px; border: 1px solid var(--border); border-radius: 6px; font-size: 12.5px; width: 180px;">
       <button type="button" class="btn btn-success" id="export-btn" onclick="exportZip()" disabled>
         📦 Export Batch (.ZIP)
@@ -485,34 +534,51 @@
     </div>
   </header>
 
-  <!-- Microphone Hardware Enforcer Bar -->
+  <!-- Hardware & Acoustic Quality Status Bar -->
   <div class="mic-bar">
     <div class="mic-bar-left">
-      <label for="mic-select" style="font-weight: 700; color: var(--text-muted);">Microphone Source:</label>
+      <label for="mic-select" style="font-weight: 700; color: var(--text-muted);">Microphone:</label>
       <select id="mic-select" class="mic-select-dropdown" onchange="onUserSelectMic(this.value)">
-        <option value="">Checking connected audio devices...</option>
+        <option value="">Microphone permission required...</option>
       </select>
       <button type="button" class="btn" style="padding: 4px 10px; font-size: 12px;" onclick="refreshAudioDevices(true)" title="Rescan devices">🔄 Rescan</button>
     </div>
-    <div>
-      <span id="mic-status-badge" class="mic-status-tag internal">❌ Internal Microphone (Blocked)</span>
+    <div class="status-tags-group">
+      <span id="rate-badge" class="status-tag ok">44.1 kHz PCM</span>
+      <span id="mic-status-badge" class="status-tag warn">⚠️ Permission Needed</span>
+      <span id="noise-badge" class="status-tag ok">Room: Quiet</span>
     </div>
   </div>
 
   <main>
-    <!-- Prominent Blocked Banner (Shown when Internal Mic is selected) -->
-    <div class="mic-alert-banner" id="mic-blocked-banner">
-      <div class="mic-alert-icon">🚫</div>
+    <!-- First-Time User Setup Microphone Permission Card -->
+    <div class="permission-card" id="mic-permission-card" style="display: none;">
+      <div class="permission-icon">🎙️</div>
+      <div class="permission-content">
+        <div class="permission-title">Set Up Your Microphone</div>
+        <p class="permission-desc">
+          To verify your external microphone and begin recording, your browser needs microphone permission. 
+          Click the button below, then click <strong>"Allow"</strong> when prompted by your browser.
+        </p>
+        <button type="button" class="btn btn-accent" id="btn-request-mic" onclick="requestMicrophoneAccess()" style="padding: 10px 20px; font-size: 14px;">
+          🎙️ Allow Microphone Access
+        </button>
+      </div>
+    </div>
+
+    <!-- Hardware / Quality Failure Warning Banner -->
+    <div class="quality-banner err" id="quality-banner">
+      <div class="banner-icon" id="banner-icon">🚫</div>
       <div>
-        <div class="mic-alert-title">Internal Laptop Microphone Blocked</div>
-        <div class="mic-alert-text">
+        <div class="banner-title" id="banner-title">Internal Laptop Microphone Blocked</div>
+        <div class="banner-desc" id="banner-desc">
           Recordings with built-in laptop microphones are <strong>strictly disabled</strong> to prevent poor acoustic quality and compression. 
-          Please connect your <strong>external USB microphone or audio interface</strong> on a stand, and select it from the dropdown above to enable the Record button.
+          Please connect your <strong>external USB microphone or audio interface</strong> on a stand, and select it from the dropdown above to enable recording.
         </div>
       </div>
     </div>
 
-    <!-- Setup Card: Load CSV or Sample -->
+    <!-- Setup Card -->
     <div class="setup-card" id="setup-card">
       <div class="setup-title">
         <span>Load Recording Prompts</span>
@@ -550,7 +616,7 @@
         <div class="prompter-text" id="prompt-text">Click Record to begin.</div>
       </div>
 
-      <!-- VU Visualizer Meter -->
+      <!-- Live VU Visualizer Meter -->
       <div class="meter-container">
         <span class="meter-label">Mic Level</span>
         <div class="meter-bar-track">
@@ -573,12 +639,12 @@
 
       <!-- Review Audio Player -->
       <div class="review-row" id="review-row">
-        <span class="review-label">✓ Take Recorded</span>
+        <span class="review-label">✓ Take Verified</span>
         <audio id="review-player" controls></audio>
         <button type="button" class="btn" style="padding: 6px 12px; font-size: 12px;" onclick="reRecordPrompt()">Re-record</button>
       </div>
 
-      <!-- Keyboard Shortcuts Guidance -->
+      <!-- Shortcuts -->
       <div class="shortcuts-bar">
         <div>Shortcuts: <kbd>Space</kbd> Record/Stop &nbsp;|&nbsp; <kbd>→</kbd> Next &nbsp;|&nbsp; <kbd>←</kbd> Prev &nbsp;|&nbsp; <kbd>R</kbd> Re-record</div>
         <div style="cursor: pointer; color: var(--accent); font-weight: 600;" onclick="switchPromptFile()">Load different CSV</div>
@@ -592,7 +658,7 @@
     // State
     let prompts = [];
     let currentIndex = 0;
-    let recordingsMap = new Map(); // prompt_id -> { blob, duration, timestamp, sentence }
+    let recordingsMap = new Map();
     let isRecording = false;
     let audioContext = null;
     let mediaStream = null;
@@ -603,12 +669,22 @@
     let analyser = null;
     let animFrame = null;
 
-    // Hardware Enforcer State
+    // Quality Guard State
+    let hasMicPermission = false;
     let audioInputDevices = [];
     let selectedDeviceId = "";
     let isExternalMicActive = false;
+    let isHardwareQualified = false;
+    let currentClipClipped = false;
+    let peakAmplitude = 0;
 
-    // IndexedDB for persistent offline storage
+    // Minimum Quality Thresholds
+    const MIN_SAMPLE_RATE = 24000;      // Must be at least 24 kHz
+    const MAX_PEAK_THRESHOLD = 0.985;   // Digital clipping barrier
+    const MIN_PEAK_THRESHOLD = 0.080;   // Whispering / too quiet barrier (-22 dBFS)
+    const MAX_NOISE_FLOOR_RMS = 0.038;  // High background noise barrier (-28 dBFS)
+
+    // IndexedDB
     const DB_NAME = "speech_recorder_db";
     const STORE_NAME = "recordings";
     let db = null;
@@ -663,11 +739,92 @@
       const t = document.getElementById("toast");
       t.innerText = msg;
       t.style.display = "block";
-      setTimeout(() => { t.style.display = "none"; }, 3000);
+      setTimeout(() => { t.style.display = "none"; }, 3500);
     }
 
     // =========================================================
-    // MICROPHONE HARDWARE ENFORCER (BLOCKS INTERNAL LAPTOP MICS)
+    // FIRST-TIME USER MICROPHONE ONBOARDING FLOW
+    // =========================================================
+
+    async function checkMicPermissionState() {
+      const permCard = document.getElementById("mic-permission-card");
+      const headerBtn = document.getElementById("header-setup-mic-btn");
+
+      if (navigator.permissions && navigator.permissions.query) {
+        try {
+          const status = await navigator.permissions.query({ name: "microphone" });
+          if (status.state === "granted") {
+            hasMicPermission = true;
+            permCard.style.display = "none";
+            headerBtn.style.display = "none";
+            refreshAudioDevices();
+            return;
+          } else if (status.state === "denied") {
+            hasMicPermission = false;
+            permCard.style.display = "flex";
+            headerBtn.style.display = "inline-flex";
+            showQualityBanner("err", "Microphone Access Denied", "Your browser has blocked microphone access. Please click the lock icon 🔒 in your browser URL address bar, change Microphone to 'Allow', and refresh this page.");
+            setRecordingAllowed(false);
+            return;
+          }
+        } catch (e) {
+          console.log("Permissions API check skipped", e);
+        }
+      }
+
+      // If state is 'prompt' or unknown, check device labels
+      try {
+        const devices = await navigator.mediaDevices.enumerateDevices();
+        const inputs = devices.filter(d => d.kind === "audioinput");
+        if (inputs.length > 0 && inputs[0].label) {
+          hasMicPermission = true;
+          permCard.style.display = "none";
+          headerBtn.style.display = "none";
+          refreshAudioDevices();
+        } else {
+          // No permission yet! Show First-Time User Setup Card!
+          hasMicPermission = false;
+          permCard.style.display = "flex";
+          headerBtn.style.display = "inline-flex";
+          setRecordingAllowed(false);
+        }
+      } catch (err) {
+        permCard.style.display = "flex";
+        headerBtn.style.display = "inline-flex";
+        setRecordingAllowed(false);
+      }
+    }
+
+    async function requestMicrophoneAccess() {
+      const reqBtn = document.getElementById("btn-request-mic");
+      reqBtn.disabled = true;
+      reqBtn.innerText = "Waiting for Allow...";
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // Permission GRANTED!
+        hasMicPermission = true;
+        stream.getTracks().forEach(t => t.stop()); // close temp stream
+
+        document.getElementById("mic-permission-card").style.display = "none";
+        document.getElementById("header-setup-mic-btn").style.display = "none";
+        hideQualityBanner();
+
+        showToast("✓ Microphone access granted! Scanning devices...");
+        await refreshAudioDevices();
+
+      } catch (err) {
+        console.error("Mic access denied:", err);
+        showQualityBanner("err", "Microphone Permission Required", "You must click 'Allow' when the browser asks for microphone access. If you accidentally clicked 'Block', click the lock icon 🔒 next to the web address to reset permissions.");
+        setRecordingAllowed(false);
+      } finally {
+        reqBtn.disabled = false;
+        reqBtn.innerText = "🎙️ Allow Microphone Access";
+      }
+    }
+
+    // =========================================================
+    // HARDWARE & QUALITY ENFORCEMENT ENGINE
     // =========================================================
 
     const INTERNAL_PATTERNS = /(internal|built-?in|integrated|default|array|conexant|realtek|macbook|laptop|system|high definition audio|analog stereo)/i;
@@ -675,24 +832,16 @@
 
     function classifyMicrophone(label) {
       if (!label) return { isInternal: true, isExternal: false, cleanLabel: "Unknown Audio Device" };
-      const hasExternalKeyword = EXTERNAL_PATTERNS.test(label);
-      const hasInternalKeyword = INTERNAL_PATTERNS.test(label);
+      const hasExternal = EXTERNAL_PATTERNS.test(label);
+      const hasInternal = INTERNAL_PATTERNS.test(label);
 
-      // If it contains "USB" or known audio interface brands, it is strictly external
-      if (hasExternalKeyword) {
-        return { isInternal: false, isExternal: true, cleanLabel: label };
-      }
-      // If it explicitly matches built-in / internal indicators
-      if (hasInternalKeyword) {
-        return { isInternal: true, isExternal: false, cleanLabel: label };
-      }
-      // If ambiguous, default to external only if user has explicitly connected an audio line
+      if (hasExternal) return { isInternal: false, isExternal: true, cleanLabel: label };
+      if (hasInternal) return { isInternal: true, isExternal: false, cleanLabel: label };
       return { isInternal: false, isExternal: true, cleanLabel: label };
     }
 
-    async function refreshAudioDevices(showPrompt = false) {
+    async function refreshAudioDevices() {
       try {
-        // Request basic permission if device labels are blank
         if (!navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) {
           alert("Your browser does not support audio device enumeration. Please use Chrome, Edge, or Firefox.");
           return;
@@ -701,23 +850,46 @@
         let devices = await navigator.mediaDevices.enumerateDevices();
         let audioInputs = devices.filter(d => d.kind === "audioinput");
 
-        // If labels are empty, trigger a fast permission prompt
-        if (audioInputs.length > 0 && !audioInputs[0].label) {
+        if (audioInputs.length > 0 && !audioInputs[0].label && hasMicPermission) {
           try {
             const tempStream = await navigator.mediaDevices.getUserMedia({ audio: true });
             tempStream.getTracks().forEach(t => t.stop());
             devices = await navigator.mediaDevices.enumerateDevices();
             audioInputs = devices.filter(d => d.kind === "audioinput");
           } catch (permErr) {
-            console.warn("Could not obtain mic permission for labeling", permErr);
+            console.warn("Permission pending", permErr);
           }
         }
 
         audioInputDevices = audioInputs;
         populateMicDropdown();
+        checkSampleRateQuality();
 
       } catch (err) {
         console.error("Device scan error", err);
+      }
+    }
+
+    function checkSampleRateQuality() {
+      const rateBadge = document.getElementById("rate-badge");
+      try {
+        if (!audioContext) {
+          audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        const sr = audioContext.sampleRate;
+        const srKhz = (sr / 1000).toFixed(1);
+
+        if (sr < MIN_SAMPLE_RATE) {
+          rateBadge.className = "status-tag err";
+          rateBadge.innerText = `${srKhz} kHz (Below 24kHz Minimum!)`;
+          showQualityBanner("err", "Sample Rate Below 24 kHz", `Detected audio sample rate is ${sr} Hz. A minimum of 24,000 Hz (24 kHz) is strictly required for speech model training. Please adjust your audio hardware sample rate in system settings.`);
+          setRecordingAllowed(false);
+        } else {
+          rateBadge.className = "status-tag ok";
+          rateBadge.innerText = `${srKhz} kHz (16-bit PCM)`;
+        }
+      } catch (e) {
+        console.warn("Sample rate check", e);
       }
     }
 
@@ -725,26 +897,22 @@
       const select = document.getElementById("mic-select");
       select.innerHTML = "";
 
-      if (audioInputDevices.length === 0) {
+      if (audioInputDevices.length === 0 || (!audioInputDevices[0].label && !hasMicPermission)) {
         const opt = document.createElement("option");
         opt.value = "";
-        opt.innerText = "No microphones detected";
+        opt.innerText = "Click 'Set Up Microphone' above";
         select.appendChild(opt);
-        setMicBlockedState(true, "No audio input devices found. Please connect your USB microphone.");
         return;
       }
 
       let bestExternalDeviceId = "";
-      let hasExternalDevice = false;
-
       audioInputDevices.forEach((dev, idx) => {
         const opt = document.createElement("option");
         opt.value = dev.deviceId;
         const info = classifyMicrophone(dev.label || `Microphone ${idx + 1}`);
 
         if (info.isExternal) {
-          opt.innerText = `🎙️ ${info.cleanLabel} (External - Allowed)`;
-          hasExternalDevice = true;
+          opt.innerText = `🎙️ ${info.cleanLabel} (External - Ready)`;
           if (!bestExternalDeviceId) bestExternalDeviceId = dev.deviceId;
         } else {
           opt.innerText = `🚫 ${info.cleanLabel} (Internal - Blocked)`;
@@ -752,16 +920,14 @@
         select.appendChild(opt);
       });
 
-      // Auto-select the first external microphone if available
       if (bestExternalDeviceId) {
         selectedDeviceId = bestExternalDeviceId;
         select.value = bestExternalDeviceId;
-        setMicBlockedState(false);
+        setMicValidation(true);
       } else {
-        // Only internal microphones found! Block recording!
         selectedDeviceId = audioInputDevices[0].deviceId;
         select.value = selectedDeviceId;
-        setMicBlockedState(true, "Only internal laptop microphone detected.");
+        setMicValidation(false);
       }
     }
 
@@ -771,46 +937,60 @@
       if (!dev) return;
 
       const info = classifyMicrophone(dev.label);
-      if (info.isInternal) {
-        setMicBlockedState(true, "Internal laptop microphone selected.");
-      } else {
-        setMicBlockedState(false);
-      }
+      setMicValidation(!info.isInternal);
 
-      // If active stream is running, restart it with newly selected device
       if (mediaStream) {
         mediaStream.getTracks().forEach(t => t.stop());
         mediaStream = null;
       }
     }
 
-    function setMicBlockedState(blocked, reason = "") {
-      const banner = document.getElementById("mic-blocked-banner");
-      const badge = document.getElementById("mic-status-badge");
-      const recBtn = document.getElementById("rec-btn");
-
-      if (blocked) {
-        isExternalMicActive = false;
-        banner.classList.add("active");
-        badge.className = "mic-status-tag internal";
-        badge.innerText = "❌ Internal Microphone (Blocked)";
-        recBtn.disabled = true;
-        recBtn.title = "Recording blocked: Please plug in an external USB microphone.";
-      } else {
+    function setMicValidation(isValidExternal) {
+      const micBadge = document.getElementById("mic-status-badge");
+      if (isValidExternal) {
         isExternalMicActive = true;
-        banner.classList.remove("active");
-        badge.className = "mic-status-tag external";
-        badge.innerText = "✓ External Microphone Active";
-        recBtn.disabled = false;
-        recBtn.title = "Ready to record (Spacebar)";
+        micBadge.className = "status-tag ok";
+        micBadge.innerText = "✓ External Mic Active";
+        hideQualityBanner();
+        setRecordingAllowed(true);
+      } else {
+        isExternalMicActive = false;
+        micBadge.className = "status-tag err";
+        micBadge.innerText = "❌ Internal Mic (Blocked)";
+        showQualityBanner("err", "Internal Laptop Microphone Blocked", "Recordings with built-in laptop microphones are strictly blocked to ensure high audio dataset standards. Please connect your external USB microphone or audio interface on a stand, and select it from the dropdown above.");
+        setRecordingAllowed(false);
       }
     }
 
-    // Auto-listen for USB microphone hot-plugging
+    function setRecordingAllowed(allowed) {
+      isHardwareQualified = allowed;
+      const recBtn = document.getElementById("rec-btn");
+      recBtn.disabled = !allowed;
+      recBtn.title = allowed ? "Ready to record (Spacebar)" : "Recording blocked due to audio quality checks.";
+    }
+
+    function showQualityBanner(type, title, message) {
+      const banner = document.getElementById("quality-banner");
+      const icon = document.getElementById("banner-icon");
+      const titleElem = document.getElementById("banner-title");
+      const descElem = document.getElementById("banner-desc");
+
+      banner.className = `quality-banner active ${type}`;
+      icon.innerText = type === "err" ? "🚫" : "⚠️";
+      titleElem.innerText = title;
+      descElem.innerHTML = message;
+    }
+
+    function hideQualityBanner() {
+      const banner = document.getElementById("quality-banner");
+      banner.className = "quality-banner";
+    }
+
+    // Auto-listen for USB hot-plugging
     if (navigator.mediaDevices && navigator.mediaDevices.addEventListener) {
       navigator.mediaDevices.addEventListener("devicechange", () => {
         refreshAudioDevices();
-        showToast("Audio hardware change detected: Updating microphones...");
+        showToast("Audio hardware updated: rescanned microphones.");
       });
     }
 
@@ -907,7 +1087,11 @@
       currentIndex = 0;
       showCurrentPrompt();
       updateStats();
-      refreshAudioDevices();
+      if (!hasMicPermission) {
+        checkMicPermissionState();
+      } else {
+        refreshAudioDevices();
+      }
     }
 
     function showCurrentPrompt() {
@@ -955,7 +1139,7 @@
     }
 
     function reRecordPrompt() {
-      if (!isExternalMicActive) {
+      if (!isHardwareQualified) {
         shakeBanner();
         return;
       }
@@ -968,30 +1152,37 @@
     }
 
     function shakeBanner() {
-      const b = document.getElementById("mic-blocked-banner");
+      if (!hasMicPermission) {
+        requestMicrophoneAccess();
+        return;
+      }
+      const b = document.getElementById("quality-banner");
       b.classList.remove("active");
-      void b.offsetWidth; // trigger reflow
+      void b.offsetWidth;
       b.classList.add("active");
-      showToast("Cannot record: An external USB microphone is required!");
+      showToast("Cannot record: Audio quality / hardware guard triggered!");
     }
 
     // =========================================================
-    // AUDIO ENGINE (WAV 16-BIT PCM WITH DEVICE CONSTRAINTS)
+    // AUDIO ENGINE (QUALITY MONITORING & WAV EXPORT)
     // =========================================================
 
     async function initAudio() {
-      if (!isExternalMicActive) {
-        throw new Error("Internal microphone blocked. Please connect an external USB mic.");
+      if (!isHardwareQualified) {
+        throw new Error("Recording blocked by hardware quality check. Please select an external USB mic.");
       }
 
       if (!audioContext) {
-        audioContext = new (window.AudioContext || window.webkitAudioContext)({ sampleRate: 44100 });
+        audioContext = new (window.AudioContext || window.webkitAudioContext)();
       }
       if (audioContext.state === "suspended") {
         await audioContext.resume();
       }
 
-      // Exact constraint on the selected external device
+      if (audioContext.sampleRate < MIN_SAMPLE_RATE) {
+        throw new Error(`Sample rate ${audioContext.sampleRate}Hz is below the 24kHz required minimum.`);
+      }
+
       const audioConstraints = {
         channelCount: 1,
         echoCancellation: false,
@@ -1009,7 +1200,7 @@
     }
 
     async function toggleRecord() {
-      if (!isExternalMicActive) {
+      if (!isHardwareQualified) {
         shakeBanner();
         return;
       }
@@ -1022,7 +1213,7 @@
     }
 
     async function startRecording() {
-      if (!isExternalMicActive) {
+      if (!isHardwareQualified) {
         shakeBanner();
         return;
       }
@@ -1030,13 +1221,15 @@
       try {
         await initAudio();
       } catch (e) {
-        alert("Audio initialization error: " + e.message);
+        showQualityBanner("err", "Microphone Error", e.message);
         return;
       }
 
       isRecording = true;
       recordedBuffers = [];
       recStartTime = Date.now();
+      currentClipClipped = false;
+      peakAmplitude = 0;
 
       const source = audioContext.createMediaStreamSource(mediaStream);
       analyser = audioContext.createAnalyser();
@@ -1048,6 +1241,15 @@
         if (!isRecording) return;
         const channelData = e.inputBuffer.getChannelData(0);
         recordedBuffers.push(new Float32Array(channelData));
+
+        // Real-time Peak & Clipping detection
+        for (let i = 0; i < channelData.length; i++) {
+          const abs = Math.abs(channelData[i]);
+          if (abs > peakAmplitude) peakAmplitude = abs;
+          if (abs >= MAX_PEAK_THRESHOLD) {
+            currentClipClipped = true;
+          }
+        }
       };
 
       source.connect(scriptProcessor);
@@ -1057,6 +1259,7 @@
       btn.classList.add("recording");
       document.getElementById("rec-btn-text").innerText = "STOP";
       document.getElementById("review-row").classList.remove("active");
+      hideQualityBanner();
 
       drawMeter();
 
@@ -1080,7 +1283,14 @@
       }
       const avg = sum / dataArray.length;
       const pct = Math.min(100, Math.round((avg / 128) * 100));
-      document.getElementById("meter-fill").style.width = `${pct}%`;
+      const fill = document.getElementById("meter-fill");
+      fill.style.width = `${pct}%`;
+
+      if (currentClipClipped) {
+        fill.classList.add("clipping");
+      } else {
+        fill.classList.remove("clipping");
+      }
 
       animFrame = requestAnimationFrame(drawMeter);
     }
@@ -1092,6 +1302,7 @@
       clearInterval(timerInterval);
       cancelAnimationFrame(animFrame);
       document.getElementById("meter-fill").style.width = "0%";
+      document.getElementById("meter-fill").classList.remove("clipping");
 
       if (scriptProcessor) {
         scriptProcessor.disconnect();
@@ -1108,8 +1319,63 @@
         return;
       }
 
+      // =========================================================
+      // POST-RECORDING ACOUSTIC QUALITY AUDIT
+      // =========================================================
+
+      let totalLength = 0;
+      for (let i = 0; i < recordedBuffers.length; i++) {
+        totalLength += recordedBuffers[i].length;
+      }
+      const flatAudio = new Float32Array(totalLength);
+      let offset = 0;
+      for (let i = 0; i < recordedBuffers.length; i++) {
+        flatAudio.set(recordedBuffers[i], offset);
+        offset += recordedBuffers[i].length;
+      }
+
       const sampleRate = audioContext.sampleRate;
-      const wavBlob = encodeWAV(recordedBuffers, sampleRate);
+
+      // 1. Check Sample Rate Blocker (Min 24 kHz)
+      if (sampleRate < MIN_SAMPLE_RATE) {
+        showQualityBanner("err", "Sample Rate Below 24 kHz", `Your recording was captured at ${sampleRate} Hz. Speech models require at least 24,000 Hz. Clip discarded.`);
+        return;
+      }
+
+      // 2. Check Digital Clipping / Audio Too Loud
+      if (currentClipClipped || peakAmplitude >= MAX_PEAK_THRESHOLD) {
+        showQualityBanner("err", "Audio Too Loud / Clipped Distortion Detected", 
+          "The microphone signal peaked too high and distorted (clipped).<br><strong>Action required:</strong> Please step back slightly to maintain the 15–20 cm distance, or ask the church sound technician to lower the mixer preamp gain.");
+        showToast("Take discarded: Audio distorted / too loud.");
+        return;
+      }
+
+      // 3. Check Initial 350ms Noise Floor (Ambient Room Noise)
+      const noiseLeadSamples = Math.min(Math.floor(sampleRate * 0.35), flatAudio.length);
+      let noiseSumSq = 0;
+      for (let i = 0; i < noiseLeadSamples; i++) {
+        noiseSumSq += flatAudio[i] * flatAudio[i];
+      }
+      const noiseRMS = Math.sqrt(noiseSumSq / noiseLeadSamples);
+
+      if (noiseRMS > MAX_NOISE_FLOOR_RMS) {
+        const noiseDb = Math.round(20 * Math.log10(Math.max(noiseRMS, 1e-5)));
+        showQualityBanner("err", "Background Noise Floor Too High", 
+          `Ambient room noise (${noiseDb} dBFS) exceeded the clean speech limit.<br><strong>Action required:</strong> Please wait for loud background traffic or chatter to pass, ensure quiet fans, or ask the sound technician for help.`);
+        showToast("Take discarded: High background noise detected.");
+        return;
+      }
+
+      // 4. Check Audio Too Quiet / Whispering
+      if (peakAmplitude < MIN_PEAK_THRESHOLD) {
+        showQualityBanner("warn", "Audio Too Quiet / Low Volume", 
+          "The recorded voice was too quiet or inaudible.<br><strong>Action required:</strong> Please speak with confident, natural projection at 15–20 cm from the microphone, or ask the technician to increase the mixer volume slightly.");
+        showToast("Take discarded: Audio too quiet.");
+        return;
+      }
+
+      // PASSED ALL AUDITS! Encode clean 16-bit PCM WAV
+      const wavBlob = encodeWAVFromFlat(flatAudio, sampleRate);
       const cur = prompts[currentIndex];
 
       const recordItem = {
@@ -1117,6 +1383,7 @@
         sentence: cur.sentence,
         duration: durationSec.toFixed(2),
         sample_rate: sampleRate,
+        peak_level: peakAmplitude.toFixed(2),
         timestamp: new Date().toISOString(),
         blob: wavBlob
       };
@@ -1126,21 +1393,11 @@
       updateStats();
 
       showCurrentPrompt();
-      showToast(`Saved: ${cur.prompt_id} (${durationSec.toFixed(1)}s)`);
+      hideQualityBanner();
+      showToast(`✓ Quality Verified: ${cur.prompt_id} (${durationSec.toFixed(1)}s)`);
     }
 
-    function encodeWAV(buffers, sampleRate) {
-      let totalLength = 0;
-      for (let i = 0; i < buffers.length; i++) {
-        totalLength += buffers[i].length;
-      }
-      const flat = new Float32Array(totalLength);
-      let offset = 0;
-      for (let i = 0; i < buffers.length; i++) {
-        flat.set(buffers[i], offset);
-        offset += buffers[i].length;
-      }
-
+    function encodeWAVFromFlat(flat, sampleRate) {
       const buffer = new ArrayBuffer(44 + flat.length * 2);
       const view = new DataView(buffer);
 
@@ -1150,11 +1407,11 @@
       writeString(view, 12, 'fmt ');
       view.setUint32(16, 16, true);
       view.setUint16(20, 1, true);
-      view.setUint16(22, 1, true);
+      view.setUint16(22, 1, true); // Mono
       view.setUint32(24, sampleRate, true);
-      view.setUint32(28, sampleRate * 2, true);
-      view.setUint16(32, 2, true);
-      view.setUint16(34, 16, true);
+      view.setUint32(28, sampleRate * 2, true); // ByteRate (16-bit mono = 2 bytes/sample)
+      view.setUint16(32, 2, true); // BlockAlign
+      view.setUint16(34, 16, true); // 16-bit
       writeString(view, 36, 'data');
       view.setUint32(40, flat.length * 2, true);
 
@@ -1188,7 +1445,7 @@
       const wavsFolder = zip.folder("wavs");
       const station = (document.getElementById("station-id").value.trim() || "station").replace(/[^a-zA-Z0-9_-]/g, "_");
 
-      let metadataCsv = "audio_filename,prompt_id,sentence,duration_seconds,timestamp,volunteer_station\n";
+      let metadataCsv = "audio_filename,prompt_id,sentence,duration_seconds,sample_rate,timestamp,volunteer_station\n";
       let totalDurationSec = 0;
 
       for (const [id, rec] of recordingsMap.entries()) {
@@ -1197,7 +1454,7 @@
         totalDurationSec += parseFloat(rec.duration);
         
         const escapedSentence = `"${rec.sentence.replace(/"/g, '""')}"`;
-        metadataCsv += `${filename},${id},${escapedSentence},${rec.duration},${rec.timestamp},${station}\n`;
+        metadataCsv += `${filename},${id},${escapedSentence},${rec.duration},${rec.sample_rate},${rec.timestamp},${station}\n`;
       }
 
       zip.file("metadata.csv", metadataCsv);
@@ -1247,7 +1504,7 @@
 
     window.addEventListener("DOMContentLoaded", () => {
       initDB();
-      refreshAudioDevices();
+      checkMicPermissionState();
     });
   </script>
 </body>
