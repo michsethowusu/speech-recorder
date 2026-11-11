@@ -883,6 +883,118 @@
       }
     }
 
+    
+    // =========================================================
+    // ACOUSTIC VOICE ACTIVITY DETECTION (VAD) & NOISE ANALYZER
+    // =========================================================
+
+    function analyzeVocalAndNoiseContent(audioData, sampleRate) {
+      const frameSize = Math.floor(sampleRate * 0.030); // 30ms frame
+      const hopSize = Math.floor(sampleRate * 0.015);   // 15ms hop
+      const minLag = Math.floor(sampleRate / 350);      // 350 Hz pitch ceiling
+      const maxLag = Math.floor(sampleRate / 75);       // 75 Hz pitch floor
+
+      let voicedFrames = 0;
+      let totalFrames = 0;
+      let frameRmsList = [];
+
+      for (let i = 0; i < audioData.length - frameSize; i += hopSize) {
+        totalFrames++;
+        let sumSq = 0;
+        let mean = 0;
+
+        for (let j = 0; j < frameSize; j++) {
+          const val = audioData[i + j];
+          mean += val;
+          sumSq += val * val;
+        }
+        mean /= frameSize;
+        const rms = Math.sqrt(sumSq / frameSize);
+        frameRmsList.push(rms);
+
+        // Discard low-energy silence/hum frames from pitch calculation
+        if (rms < 0.018) continue;
+
+        // Normalized Autocorrelation in human pitch range
+        let norm = 0;
+        for (let j = 0; j < frameSize; j++) {
+          const centered = audioData[i + j] - mean;
+          norm += centered * centered;
+        }
+        if (norm < 1e-5) continue;
+
+        let maxCorr = 0;
+        for (let lag = minLag; lag <= maxLag; lag++) {
+          let corr = 0;
+          for (let j = 0; j < frameSize - lag; j++) {
+            corr += (audioData[i + j] - mean) * (audioData[i + j + lag] - mean);
+          }
+          if (corr > maxCorr) maxCorr = corr;
+        }
+
+        const pitchPeak = maxCorr / norm;
+        // Human voiced vowels exhibit strong harmonic periodicity (> 0.42)
+        if (pitchPeak > 0.42) {
+          voicedFrames++;
+        }
+      }
+
+      if (frameRmsList.length === 0) {
+        return { status: "NO_VOCALS", voicedSec: 0, snrDb: 0, noiseDb: -60, message: "No audio signal detected." };
+      }
+
+      frameRmsList.sort((a, b) => a - b);
+      // Bottom 20% frames estimate room noise floor
+      const noiseCount = Math.max(1, Math.floor(frameRmsList.length * 0.20));
+      let noiseSum = 0;
+      for (let i = 0; i < noiseCount; i++) noiseSum += frameRmsList[i];
+      const noiseFloorRms = noiseSum / noiseCount;
+
+      // Top 20% frames estimate speech volume
+      const speechStart = Math.floor(frameRmsList.length * 0.80);
+      let speechSum = 0;
+      for (let i = speechStart; i < frameRmsList.length; i++) speechSum += frameRmsList[i];
+      const speechRms = speechSum / Math.max(1, frameRmsList.length - speechStart);
+
+      const snrDb = 20 * Math.log10(Math.max(speechRms, 1e-5) / Math.max(noiseFloorRms, 1e-5));
+      const noiseDb = Math.round(20 * Math.log10(Math.max(noiseFloorRms, 1e-5)));
+      const voicedSec = (voicedFrames * hopSize) / sampleRate;
+
+      // Quality evaluation
+      if (voicedFrames < 14 || voicedSec < 0.40) {
+        return {
+          status: "NO_VOCALS",
+          flag: "needs_review_no_vocals",
+          voicedSec: voicedSec.toFixed(2),
+          snrDb: snrDb.toFixed(1),
+          noiseDb: noiseDb,
+          title: "⚠️ No Voice / Speech Detected",
+          message: `No human vocal speech was detected in this recording (only ${voicedSec.toFixed(1)}s of voiced sound). Did you read the sentence clearly into the microphone?`
+        };
+      }
+
+      if (snrDb < 13.5 || noiseFloorRms > 0.040) {
+        return {
+          status: "NOISY",
+          flag: "needs_review_noisy",
+          voicedSec: voicedSec.toFixed(2),
+          snrDb: snrDb.toFixed(1),
+          noiseDb: noiseDb,
+          title: "⚠️ High Background Noise Detected",
+          message: `Ambient noise is interfering with speech clarity (Room noise: ${noiseDb} dBFS, SNR: ${snrDb.toFixed(1)} dB). Please wait for background noise to pass, check for noisy fans, or ask the technician for help.`
+        };
+      }
+
+      return {
+        status: "PASS",
+        flag: "pass",
+        voicedSec: voicedSec.toFixed(2),
+        snrDb: snrDb.toFixed(1),
+        noiseDb: noiseDb,
+        message: "Audio quality pass."
+      };
+    }
+
     // =========================================================
     // HARDWARE & QUALITY ENFORCEMENT ENGINE
     // =========================================================
@@ -1419,44 +1531,42 @@
         return;
       }
 
-      // 3. Check Initial 350ms Noise Floor (Ambient Room Noise)
-      const noiseLeadSamples = Math.min(Math.floor(sampleRate * 0.35), flatAudio.length);
-      let noiseSumSq = 0;
-      for (let i = 0; i < noiseLeadSamples; i++) {
-        noiseSumSq += flatAudio[i] * flatAudio[i];
-      }
-      const noiseRMS = Math.sqrt(noiseSumSq / noiseLeadSamples);
-
-      if (noiseRMS > MAX_NOISE_FLOOR_RMS) {
-        const noiseDb = Math.round(20 * Math.log10(Math.max(noiseRMS, 1e-5)));
-        showQualityBanner("err", "Background Noise Floor Too High", 
-          `Ambient room noise (${noiseDb} dBFS) exceeded the clean speech limit.<br><strong>Action required:</strong> Please wait for loud background traffic or chatter to pass, ensure quiet fans, or ask the sound technician for help.`);
-        showToast("Take discarded: High background noise detected.");
-        return;
-      }
-
-      // 4. Check Audio Too Quiet / Whispering
+      // 3. Audio Too Quiet Check
       if (peakAmplitude < MIN_PEAK_THRESHOLD) {
         showQualityBanner("warn", "Audio Too Quiet / Low Volume", 
-          "The recorded voice was too quiet or inaudible.<br><strong>Action required:</strong> Please speak with confident, natural projection at 15–20 cm from the microphone, or ask the technician to increase the mixer volume slightly.");
+          "The recorded voice was inaudible or too quiet.<br><strong>Action required:</strong> Please speak with confident, natural projection at 15–20 cm from the microphone, or ask the technician to increase the mixer volume slightly.");
         showToast("Take discarded: Audio too quiet.");
         return;
       }
 
-      // Encode clean 16-bit PCM WAV
+      // 4. Acoustic Vocal & Noise VAD Audit
+      const vadResult = analyzeVocalAndNoiseContent(flatAudio, sampleRate);
+
+      // Encode 16-bit PCM WAV
       const wavBlob = encodeWAVFromFlat(flatAudio, sampleRate);
       const cur = prompts[currentIndex];
 
       // Check duration: Recommended 2.5s to 15.0s
-      let durationFlag = "pass";
+      let qualityFlag = "pass";
+      let warnTitle = "";
       let warnMessage = "";
 
-      if (durationSec < 2.5) {
-        durationFlag = "needs_review_too_short";
-        warnMessage = `Audio take is unusually short (${durationSec.toFixed(1)}s). Did you read the full prompt sentence?`;
+      if (vadResult.status === "NO_VOCALS") {
+        qualityFlag = vadResult.flag;
+        warnTitle = vadResult.title;
+        warnMessage = vadResult.message;
+      } else if (vadResult.status === "NOISY") {
+        qualityFlag = vadResult.flag;
+        warnTitle = vadResult.title;
+        warnMessage = vadResult.message;
+      } else if (durationSec < 2.5) {
+        qualityFlag = "needs_review_too_short";
+        warnTitle = "⚠️ Audio Take Unusually Short";
+        warnMessage = `Audio take is only ${durationSec.toFixed(1)}s. Did you read the full prompt sentence?`;
       } else if (durationSec > 15.0) {
-        durationFlag = "needs_review_too_long";
-        warnMessage = `Audio take is unusually long (${durationSec.toFixed(1)}s). Model training works best with concise, fluent takes under 15 seconds.`;
+        qualityFlag = "needs_review_too_long";
+        warnTitle = "⚠️ Audio Take Unusually Long";
+        warnMessage = `Audio take is ${durationSec.toFixed(1)}s. Speech training performs best with concise, fluent takes under 15 seconds.`;
       }
 
       const candidateTake = {
@@ -1465,34 +1575,36 @@
         duration: durationSec.toFixed(2),
         sample_rate: sampleRate,
         peak_level: peakAmplitude.toFixed(2),
-        quality_flag: durationFlag,
+        quality_flag: qualityFlag,
         timestamp: new Date().toISOString(),
         blob: wavBlob
       };
 
-      if (durationFlag !== "pass") {
-        // Show Duration Warning with Override Option!
+      if (qualityFlag !== "pass") {
+        // Flagged for Vocal / Noise / Duration issue: Allow user to review and override!
         pendingTake = candidateTake;
-        showDurationWarning(warnMessage);
+        showQualityWarningWithOverride(warnTitle, warnMessage);
         const player = document.getElementById("review-player");
         player.src = URL.createObjectURL(wavBlob);
         document.getElementById("review-row").classList.add("active");
         return;
       }
 
-      // Normal length: Save immediately!
+      // Normal Pass: Commit immediately!
       commitRecordingTake(candidateTake);
     }
 
 
-    function showDurationWarning(msg) {
+    function showQualityWarningWithOverride(title, msg) {
       const card = document.getElementById("duration-warning-card");
-      document.getElementById("dur-warn-desc").innerText = msg;
+      document.getElementById("dur-warn-title").innerText = title;
+      document.getElementById("dur-warn-desc").innerHTML = msg;
       card.classList.add("active");
     }
 
     function hideDurationWarning() {
       document.getElementById("duration-warning-card").classList.remove("active");
+      pendingTake = null;
     }
 
     function confirmOverrideTake() {
