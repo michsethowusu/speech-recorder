@@ -231,6 +231,50 @@
       margin-bottom: 14px;
     }
 
+    
+    /* Duration Warning & Override Box */
+    .duration-warning-card {
+      background: var(--warning-soft);
+      border: 1.5px solid var(--warning);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      margin-bottom: 20px;
+      display: none;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 14px;
+      animation: fadeIn 0.3s ease;
+    }
+    .duration-warning-card.active { display: flex; }
+    .duration-warning-title {
+      font-size: 14px;
+      font-weight: 800;
+      color: #92400E;
+      margin-bottom: 3px;
+    }
+    .duration-warning-desc {
+      font-size: 13px;
+      color: #78350F;
+    }
+    .override-actions {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+    .badge-review {
+      font-size: 11px;
+      font-weight: 700;
+      color: #92400E;
+      background: #FEF3C7;
+      border: 1px solid #FCD34D;
+      padding: 3px 8px;
+      border-radius: var(--radius-full);
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
     /* Quality Alert Banner */
     .quality-banner {
       border-radius: var(--radius);
@@ -638,6 +682,21 @@
       </div>
 
       <!-- Review Audio Player -->
+      
+      <!-- Duration Quality Warning & Override Card -->
+      <div class="duration-warning-card" id="duration-warning-card">
+        <div>
+          <div class="duration-warning-title" id="dur-warn-title">⚠️ Unusual Take Duration</div>
+          <div class="duration-warning-desc" id="dur-warn-desc">This clip duration is outside the recommended range.</div>
+        </div>
+        <div class="override-actions">
+          <button type="button" class="btn" onclick="reRecordPrompt()">🎙️ Re-record</button>
+          <button type="button" class="btn" style="background: #FEF3C7; color: #92400E; border-color: #FCD34D; font-weight: 700;" onclick="confirmOverrideTake()">
+            ⚠️ Override & Keep
+          </button>
+        </div>
+      </div>
+
       <div class="review-row" id="review-row">
         <span class="review-label">✓ Take Verified</span>
         <audio id="review-player" controls></audio>
@@ -670,6 +729,7 @@
     let animFrame = null;
 
     // Quality Guard State
+    let pendingTake = null; // Staged take awaiting duration override confirmation
     let hasMicPermission = false;
     let audioInputDevices = [];
     let selectedDeviceId = "";
@@ -1105,8 +1165,17 @@
       const reviewRow = document.getElementById("review-row");
       const badge = document.getElementById("recorded-badge");
 
+      hideDurationWarning();
       if (rec) {
         badge.style.display = "inline";
+        if (rec.quality_flag && rec.quality_flag !== "pass") {
+          badge.className = "badge-review";
+          badge.innerText = `⚠️ Review: ${rec.quality_flag.replace('needs_review_', '')}`;
+        } else {
+          badge.className = "";
+          badge.style.color = "var(--success)";
+          badge.innerText = "✓ Recorded (Pass)";
+        }
         reviewRow.classList.add("active");
         const player = document.getElementById("review-player");
         player.src = URL.createObjectURL(rec.blob);
@@ -1374,27 +1443,78 @@
         return;
       }
 
-      // PASSED ALL AUDITS! Encode clean 16-bit PCM WAV
+      // Encode clean 16-bit PCM WAV
       const wavBlob = encodeWAVFromFlat(flatAudio, sampleRate);
       const cur = prompts[currentIndex];
 
-      const recordItem = {
+      // Check duration: Recommended 2.5s to 15.0s
+      let durationFlag = "pass";
+      let warnMessage = "";
+
+      if (durationSec < 2.5) {
+        durationFlag = "needs_review_too_short";
+        warnMessage = `Audio take is unusually short (${durationSec.toFixed(1)}s). Did you read the full prompt sentence?`;
+      } else if (durationSec > 15.0) {
+        durationFlag = "needs_review_too_long";
+        warnMessage = `Audio take is unusually long (${durationSec.toFixed(1)}s). Model training works best with concise, fluent takes under 15 seconds.`;
+      }
+
+      const candidateTake = {
         prompt_id: cur.prompt_id,
         sentence: cur.sentence,
         duration: durationSec.toFixed(2),
         sample_rate: sampleRate,
         peak_level: peakAmplitude.toFixed(2),
+        quality_flag: durationFlag,
         timestamp: new Date().toISOString(),
         blob: wavBlob
       };
 
-      recordingsMap.set(cur.prompt_id, recordItem);
-      saveRecordingToDB(recordItem);
-      updateStats();
+      if (durationFlag !== "pass") {
+        // Show Duration Warning with Override Option!
+        pendingTake = candidateTake;
+        showDurationWarning(warnMessage);
+        const player = document.getElementById("review-player");
+        player.src = URL.createObjectURL(wavBlob);
+        document.getElementById("review-row").classList.add("active");
+        return;
+      }
 
+      // Normal length: Save immediately!
+      commitRecordingTake(candidateTake);
+    }
+
+
+    function showDurationWarning(msg) {
+      const card = document.getElementById("duration-warning-card");
+      document.getElementById("dur-warn-desc").innerText = msg;
+      card.classList.add("active");
+    }
+
+    function hideDurationWarning() {
+      document.getElementById("duration-warning-card").classList.remove("active");
+    }
+
+    function confirmOverrideTake() {
+      if (!pendingTake) return;
+      commitRecordingTake(pendingTake);
+      pendingTake = null;
+      hideDurationWarning();
+      showToast("Take saved and marked as 'needs_review' in metadata.");
+    }
+
+    function commitRecordingTake(take) {
+      recordingsMap.set(take.prompt_id, take);
+      saveRecordingToDB(take);
+      updateStats();
       showCurrentPrompt();
       hideQualityBanner();
-      showToast(`✓ Quality Verified: ${cur.prompt_id} (${durationSec.toFixed(1)}s)`);
+      hideDurationWarning();
+      if (take.quality_flag === "pass") {
+        showToast(`✓ Quality Verified: ${take.prompt_id} (${take.duration}s)`);
+      } else {
+        showToast(`⚠️ Saved with flag: ${take.quality_flag}`);
+      }
     }
 
     function encodeWAVFromFlat(flat, sampleRate) {
@@ -1445,7 +1565,7 @@
       const wavsFolder = zip.folder("wavs");
       const station = (document.getElementById("station-id").value.trim() || "station").replace(/[^a-zA-Z0-9_-]/g, "_");
 
-      let metadataCsv = "audio_filename,prompt_id,sentence,duration_seconds,sample_rate,timestamp,volunteer_station\n";
+      let metadataCsv = "audio_filename,prompt_id,sentence,duration_seconds,sample_rate,quality_flag,timestamp,volunteer_station\n";
       let totalDurationSec = 0;
 
       for (const [id, rec] of recordingsMap.entries()) {
@@ -1454,7 +1574,7 @@
         totalDurationSec += parseFloat(rec.duration);
         
         const escapedSentence = `"${rec.sentence.replace(/"/g, '""')}"`;
-        metadataCsv += `${filename},${id},${escapedSentence},${rec.duration},${rec.sample_rate},${rec.timestamp},${station}\n`;
+        const qFlag = rec.quality_flag || "pass";\n        metadataCsv += `${filename},${id},${escapedSentence},${rec.duration},${rec.sample_rate},${qFlag},${rec.timestamp},${station}\n`;
       }
 
       zip.file("metadata.csv", metadataCsv);
