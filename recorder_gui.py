@@ -31,8 +31,27 @@ MIN_PEAK_THRESHOLD = 0.080   # Inaudible / too quiet threshold (-22 dBFS)
 MIN_DURATION_SEC = 2.5       # Short take threshold
 MAX_DURATION_SEC = 15.0      # Long take threshold
 
-INTERNAL_PATTERNS = re.compile(r'(internal|built-?in|integrated|default|array|conexant|realtek|macbook|laptop|system|high definition audio|analog stereo)', re.IGNORECASE)
-EXTERNAL_PATTERNS = re.compile(r'(usb|external|scarlett|focusrite|behringer|samson|shure|rode|audiobox|presonus|yeti|blue|hyperx|headset|line\s*in|interface|mic\s*in|streamer|broadcast)', re.IGNORECASE)
+EXTERNAL_PATTERNS = re.compile(
+    r'(usb|external|scarlett|focusrite|behringer|samson|shure|rode|audiobox|presonus|yeti|'
+    r'blue|hyperx|headset|quadcast|elgato|at2020|fifine|boya|saramonic|tonor|soundcraft|'
+    r'mackie|yamaha|motu|solid state logic|zoom|tascam|line\s*in|line-in)',
+    re.IGNORECASE
+)
+
+INTERNAL_PATTERNS = re.compile(
+    r'(internal|built-?in|integrated|default|pulse|pipewire|sysdefault|dmix|'
+    r'hd-audio|generic|realtek|alc\d+|array|conexant|intel|analog\s*stereo|'
+    r'high\s*definition|system)',
+    re.IGNORECASE
+)
+
+def is_truly_external(name):
+    name_clean = name.strip()
+    if "usb" in name_clean.lower():
+        return True
+    has_ext = bool(EXTERNAL_PATTERNS.search(name_clean))
+    has_int = bool(INTERNAL_PATTERNS.search(name_clean))
+    return has_ext and not has_int
 
 
 class SpeechRecorderApp:
@@ -54,6 +73,7 @@ class SpeechRecorderApp:
         self.selected_device_id = None
         self.sample_rate = 44100
         self.is_external_mic = False
+        self.is_currently_usb = False
         self.pending_take = None
         self.current_clip_clipped = False
 
@@ -105,22 +125,27 @@ class SpeechRecorderApp:
         self.load_csv_btn.pack(side=tk.RIGHT, padx=8)
 
         # Hardware Bar (Microphone Enforcer)
-        hw_frame = tk.Frame(self.root, bg="#FFFFFF", padx=16, pady=8, relief=tk.SOLID, bd=1)
-        hw_frame.pack(fill=tk.X, side=tk.TOP)
+        self.hw_frame = tk.Frame(self.root, bg="#FFFFFF", padx=16, pady=8, relief=tk.SOLID, bd=1)
+        self.hw_frame.pack(fill=tk.X, side=tk.TOP)
 
-        tk.Label(hw_frame, text="Input Microphone:", font=("Arial", 10, "bold"), bg="#FFFFFF").pack(side=tk.LEFT, padx=(0, 6))
+        tk.Label(self.hw_frame, text="Input Microphone:", font=("Arial", 10, "bold"), bg="#FFFFFF").pack(side=tk.LEFT, padx=(0, 6))
 
-        self.mic_combo = ttk.Combobox(hw_frame, state="readonly", width=42)
+        self.mic_combo = ttk.Combobox(self.hw_frame, state="readonly", width=42)
         self.mic_combo.bind("<<ComboboxSelected>>", self.on_mic_selected)
         self.mic_combo.pack(side=tk.LEFT, padx=(0, 8))
 
-        rescan_btn = tk.Button(hw_frame, text="Rescan", font=("Arial", 9), padx=6, pady=2, command=self.refresh_audio_devices)
-        rescan_btn.pack(side=tk.LEFT, padx=(0, 12))
+        rescan_btn = tk.Button(self.hw_frame, text="Rescan", font=("Arial", 9), padx=6, pady=2, command=self.refresh_audio_devices)
+        rescan_btn.pack(side=tk.LEFT, padx=(0, 8))
 
-        self.mic_badge = tk.Label(hw_frame, text="Checking Mic...", font=("Arial", 10, "bold"), bg="#FEE2E2", fg="#991B1B", padx=8, pady=2)
+        self.manual_jack_override = tk.BooleanVar(value=False)
+        self.jack_cb = tk.Checkbutton(self.hw_frame, text="External mic via 3.5mm jack", variable=self.manual_jack_override,
+                                      command=self._on_jack_override_toggle, bg="#FFFFFF", font=("Arial", 9))
+        self.jack_cb.pack(side=tk.LEFT, padx=(0, 8))
+
+        self.mic_badge = tk.Label(self.hw_frame, text="Checking Mic...", font=("Arial", 10, "bold"), bg="#FEE2E2", fg="#991B1B", padx=8, pady=2)
         self.mic_badge.pack(side=tk.LEFT, padx=4)
 
-        self.rate_badge = tk.Label(hw_frame, text="44.1 kHz", font=("Arial", 10), bg="#F1F5F9", padx=8, pady=2)
+        self.rate_badge = tk.Label(self.hw_frame, text="44.1 kHz", font=("Arial", 10), bg="#F1F5F9", padx=8, pady=2)
         self.rate_badge.pack(side=tk.RIGHT)
 
         # Warning / Quality Alert Banner Frame
@@ -223,6 +248,11 @@ class SpeechRecorderApp:
     # HARDWARE & MICROPHONE ENFORCEMENT
     # -------------------------------------------------------------
 
+    def _on_jack_override_toggle(self):
+        sel_idx = self.mic_combo.current()
+        if hasattr(self, 'input_devices_list') and 0 <= sel_idx < len(self.input_devices_list):
+            self._apply_device_selection(self.input_devices_list[sel_idx])
+
     def refresh_audio_devices(self):
         try:
             devices = sd.query_devices()
@@ -232,9 +262,8 @@ class SpeechRecorderApp:
             for idx, dev in enumerate(devices):
                 if dev.get("max_input_channels", 0) > 0:
                     name = dev.get("name", f"Device {idx}")
-                    is_ext = bool(EXTERNAL_PATTERNS.search(name))
-                    is_int = bool(INTERNAL_PATTERNS.search(name)) and not is_ext
-                    input_devices.append((idx, name, is_ext, is_int))
+                    is_ext = is_truly_external(name)
+                    input_devices.append((idx, name, is_ext))
 
             if not input_devices:
                 self.mic_combo["values"] = ["No microphones detected"]
@@ -242,25 +271,19 @@ class SpeechRecorderApp:
                 return
 
             combo_values = []
-            default_selection = 0
-
-            for i, (idx, name, is_ext, is_int) in enumerate(input_devices):
+            for i, (idx, name, is_ext) in enumerate(input_devices):
                 if is_ext:
                     label = f"[{idx}] 🎙️ {name} (External - Ready)"
                     if external_device_idx is None:
                         external_device_idx = i
-                elif is_int:
-                    label = f"[{idx}] 🚫 {name} (Internal - Blocked)"
                 else:
-                    label = f"[{idx}] 🎙️ {name}"
-                    if external_device_idx is None:
-                        external_device_idx = i
+                    label = f"[{idx}] 🚫 {name} (Internal / System - Blocked)"
                 combo_values.append(label)
 
             self.mic_combo["values"] = combo_values
             self.input_devices_list = input_devices
 
-            # Select external device if available
+            # Select external device if available, otherwise select first device and block it!
             sel_idx = external_device_idx if external_device_idx is not None else 0
             self.mic_combo.current(sel_idx)
             self._apply_device_selection(input_devices[sel_idx])
@@ -274,8 +297,9 @@ class SpeechRecorderApp:
             self._apply_device_selection(self.input_devices_list[sel_idx])
 
     def _apply_device_selection(self, dev_tuple):
-        idx, name, is_ext, is_int = dev_tuple
+        idx, name, is_ext = dev_tuple
         self.selected_device_id = idx
+        self.is_currently_usb = is_ext
 
         try:
             dev_info = sd.query_devices(idx)
@@ -285,8 +309,10 @@ class SpeechRecorderApp:
         except Exception:
             self.sample_rate = 44100
 
-        if is_int and not is_ext:
-            self.set_mic_blocked(True, f"Internal Laptop Microphone Blocked ('{name}'). Built-in microphones cause heavy audio compression and distortion. Please plug in an external USB microphone or audio interface and select it from the dropdown.")
+        is_allowed = is_ext or self.manual_jack_override.get()
+
+        if not is_allowed:
+            self.set_mic_blocked(True, f"Internal Laptop Microphone Blocked ('{name}'). Built-in microphones cause heavy audio compression and background noise. Please plug in an external USB microphone or audio interface on a stand, or check 'External mic via 3.5mm jack' if connected via analog port.")
         else:
             self.set_mic_blocked(False)
 
@@ -296,10 +322,13 @@ class SpeechRecorderApp:
             self.mic_badge.configure(text="🚫 Internal Mic (Blocked)", bg="#FEE2E2", fg="#991B1B")
             self.rec_btn.configure(state=tk.DISABLED, bg="#94A3B8")
             self.banner_lbl.configure(text=message)
-            self.banner_frame.pack(fill=tk.X, side=tk.TOP, before=self.root.winfo_children()[2])
+            self.banner_frame.pack(fill=tk.X, side=tk.TOP, after=self.hw_frame)
         else:
             self.is_external_mic = True
-            self.mic_badge.configure(text="✓ External Mic Active", bg="#DCFCE7", fg="#166534")
+            if self.manual_jack_override.get() and not self.is_currently_usb:
+                self.mic_badge.configure(text="⚠️ 3.5mm External Mic (Override)", bg="#FEF3C7", fg="#92400E")
+            else:
+                self.mic_badge.configure(text="✓ External Mic Active", bg="#DCFCE7", fg="#166534")
             self.rec_btn.configure(state=tk.NORMAL, bg="#DC2626")
             self.banner_frame.pack_forget()
 
