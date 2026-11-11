@@ -394,6 +394,10 @@ class SpeechRecorderApp:
         self.export_btn.configure(state=tk.NORMAL if count > 0 else tk.DISABLED)
 
     def next_prompt(self):
+        try:
+            sd.stop()
+        except Exception:
+            pass
         if self.is_recording:
             self.stop_recording()
         if self.current_index < len(self.prompts) - 1:
@@ -401,6 +405,10 @@ class SpeechRecorderApp:
             self._show_current_prompt()
 
     def prev_prompt(self):
+        try:
+            sd.stop()
+        except Exception:
+            pass
         if self.is_recording:
             self.stop_recording()
         if self.current_index > 0:
@@ -424,6 +432,10 @@ class SpeechRecorderApp:
             self.start_recording()
 
     def start_recording(self):
+        try:
+            sd.stop()
+        except Exception:
+            pass
         if not self.is_external_mic:
             messagebox.showwarning("External Microphone Required", "Cannot record with internal microphone. Please connect a USB microphone.")
             return
@@ -634,6 +646,13 @@ class SpeechRecorderApp:
         self._append_metadata_record(record)
         self._show_current_prompt()
         self._update_stats()
+
+        # Automatically play back the recording so user immediately hears their take
+        try:
+            sd.stop()
+            sd.play(audio_data, self.sample_rate)
+        except Exception as e:
+            print(f"Auto-playback error: {e}")
 
     def _append_metadata_record(self, record):
         import csv
