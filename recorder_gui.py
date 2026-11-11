@@ -667,8 +667,10 @@ class SpeechRecorderApp:
             sd.play(self.pending_take["audio"], self.sample_rate)
 
     def re_record_prompt(self):
-        if sd.get_stream():
+        try:
             sd.stop()
+        except Exception:
+            pass
         self.pending_take = None
         self.override_btn.pack_forget()
         self.review_frame.pack_forget()
